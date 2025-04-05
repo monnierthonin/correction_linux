@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Exercices</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .form-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            margin-bottom: 20px;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .success {
+            color: green;
+            margin: 10px 0;
+            text-align: center;
+        }
+        #serverStatus {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="serverStatus">Vérification de la connexion au serveur...</div>
+    
+    <h2 style="text-align: center;">Connexion</h2>
+    <div class="form-container">
+        <div id="loginMessage" class="message"></div>
+        <input type="text" id="username" placeholder="Nom d'utilisateur" />
+        <input type="password" id="password" placeholder="Mot de passe" />
+        <button onclick="login()">Se connecter</button>
+    </div>
+
+    <div id="exerciceUpload" style="display: none;">
+        <h2 style="text-align: center;">Télécharger un exercice</h2>
+        <div class="form-container">
+            <div id="uploadMessage" class="message"></div>
+            <input type="file" id="file" accept=".py" />
+            <input type="text" id="exerciceName" placeholder="Nom de l'exercice" />
+            <button onclick="uploadExercice()">Télécharger</button>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = "http://localhost:3000";
+        let authToken = '';
+
+        // Vérifier la connexion au serveur
+        async function checkServerConnection() {
+            const statusDiv = document.getElementById('serverStatus');
+            try {
+                const response = await fetch(`${apiUrl}/api/test`);
+                const data = await response.json();
+                statusDiv.textContent = 'Serveur connecté: ' + data.message;
+                statusDiv.style.backgroundColor = '#dff0d8';
+                statusDiv.style.color = '#3c763d';
+            } catch (error) {
+                statusDiv.textContent = 'Erreur de connexion au serveur';
+                statusDiv.style.backgroundColor = '#f2dede';
+                statusDiv.style.color = '#a94442';
+                console.error('Erreur:', error);
+            }
+        }
+
+        // Vérifier la connexion au démarrage
+        checkServerConnection();
+
+        // Fonction de connexion
+        async function login() {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+            const messageDiv = document.getElementById("loginMessage");
+
+            try {
+                const response = await fetch(`${apiUrl}/auth/login`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ username, password }),
+                });
+
+                const data = await response.json();
+                console.log('Réponse du serveur:', data);
+
+                if (response.ok) {
+                    messageDiv.className = "success";
+                    messageDiv.textContent = "Connexion réussie !";
+                    authToken = data.token;
+                    document.getElementById("exerciceUpload").style.display = "block";
+                } else {
+                    messageDiv.className = "error";
+                    messageDiv.textContent = data.error || "Erreur de connexion";
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                messageDiv.className = "error";
+                messageDiv.textContent = "Erreur de connexion au serveur";
+            }
+        }
+
+        // Fonction pour uploader un exercice
+        async function uploadExercice() {
+            const file = document.getElementById("file").files[0];
+            const exerciceName = document.getElementById("exerciceName").value;
+            const messageDiv = document.getElementById("uploadMessage");
+
+            if (!file || !exerciceName) {
+                messageDiv.className = "error";
+                messageDiv.textContent = "Veuillez sélectionner un fichier et donner un nom à l'exercice";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("name", exerciceName);
+
+            try {
+                const response = await fetch(`${apiUrl}/exercices/upload`, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageDiv.className = "success";
+                    messageDiv.textContent = "Exercice téléchargé avec succès !";
+                } else {
+                    messageDiv.className = "error";
+                    messageDiv.textContent = data.error || "Erreur lors du téléchargement";
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                messageDiv.className = "error";
+                messageDiv.textContent = "Erreur de connexion au serveur";
+            }
+        }
+    </script>
+</body>
+</html>
