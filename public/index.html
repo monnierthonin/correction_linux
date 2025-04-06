@@ -55,15 +55,20 @@
 <body>
     <div id="serverStatus">Vérification de la connexion au serveur...</div>
     
-    <h2 style="text-align: center;">Connexion</h2>
-    <div class="form-container">
-        <div id="loginMessage" class="message"></div>
-        <input type="text" id="username" placeholder="Nom d'utilisateur" />
-        <input type="password" id="password" placeholder="Mot de passe" />
-        <button onclick="login()">Se connecter</button>
+    <div id="loginContainer">
+        <h2 style="text-align: center;">Connexion</h2>
+        <div class="form-container">
+            <div id="loginMessage" class="message"></div>
+            <input type="text" id="username" placeholder="Nom d'utilisateur" />
+            <input type="password" id="password" placeholder="Mot de passe" />
+            <button onclick="login()">Se connecter</button>
+        </div>
     </div>
 
     <div id="exerciceUpload" style="display: none;">
+        <div style="text-align: right; margin-bottom: 10px;">
+            <button onclick="logout()" style="width: auto; padding: 5px 15px;">Déconnexion</button>
+        </div>
         <h2 style="text-align: center;">Télécharger un exercice</h2>
         <div class="form-container">
             <div id="uploadMessage" class="message"></div>
@@ -97,6 +102,19 @@
         // Vérifier la connexion au démarrage
         checkServerConnection();
 
+        // Fonction de déconnexion
+        function logout() {
+            authToken = '';
+            document.getElementById("exerciceUpload").style.display = "none";
+            document.getElementById("loginContainer").style.display = "block";
+            document.getElementById("loginMessage").textContent = "";
+            document.getElementById("username").value = "";
+            document.getElementById("password").value = "";
+            document.getElementById("file").value = "";
+            document.getElementById("exerciceName").value = "";
+            document.getElementById("uploadMessage").textContent = "";
+        }
+
         // Fonction de connexion
         async function login() {
             const username = document.getElementById("username").value;
@@ -120,6 +138,7 @@
                     messageDiv.textContent = "Connexion réussie !";
                     authToken = data.token;
                     document.getElementById("exerciceUpload").style.display = "block";
+                    document.getElementById("loginContainer").style.display = "none"; // Cacher le formulaire de connexion
                 } else {
                     messageDiv.className = "error";
                     messageDiv.textContent = data.error || "Erreur de connexion";

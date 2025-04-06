@@ -73,8 +73,8 @@ def calculate_grade(exercice_path, solution_path):
     grade += similarity_points
     print(f"Similarité du code {similarity}% : +{similarity_points} points")
     
-    # Arrondir la note finale à 2 décimales
-    final_grade = round(grade, 2)
+    # Arrondir la note finale à 2 décimales et la convertir sur 100
+    final_grade = round(grade * 100, 2)
     print(f"Note finale : {final_grade}")
     return final_grade
 
