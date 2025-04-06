@@ -28,7 +28,11 @@ const login = async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user.id }, 'SECRET_KEY', { expiresIn: '1h' });
-    res.status(200).json({ token });
+    res.status(200).json({ 
+        token,
+        userId: user.id,
+        username: user.username
+    });
 };
 
 module.exports = { register, login };

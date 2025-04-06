@@ -50,6 +50,35 @@
             padding: 10px;
             border-radius: 4px;
         }
+        .exercices-list {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .exercice-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .exercice-item:last-child {
+            border-bottom: none;
+        }
+        .note {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 3px;
+            background-color: #e8f5e9;
+        }
+        .pending {
+            background-color: #fff3e0;
+            color: #f57c00;
+        }
     </style>
 </head>
 <body>
@@ -67,6 +96,7 @@
 
     <div id="exerciceUpload" style="display: none;">
         <div style="text-align: right; margin-bottom: 10px;">
+            <span id="userInfo" style="margin-right: 10px;"></span>
             <button onclick="logout()" style="width: auto; padding: 5px 15px;">Déconnexion</button>
         </div>
         <h2 style="text-align: center;">Télécharger un exercice</h2>
@@ -76,11 +106,18 @@
             <input type="text" id="exerciceName" placeholder="Nom de l'exercice" />
             <button onclick="uploadExercice()">Télécharger</button>
         </div>
+
+        <div class="exercices-list" id="exercicesList">
+            <h3>Mes exercices</h3>
+            <div id="exercicesContainer"></div>
+        </div>
     </div>
 
     <script>
         const apiUrl = "http://localhost:3000";
         let authToken = '';
+        let currentUserId = null;
+        let currentUsername = '';
 
         // Vérifier la connexion au serveur
         async function checkServerConnection() {
@@ -99,12 +136,56 @@
             }
         }
 
+        // Charger les exercices de l'utilisateur
+        async function loadUserExercices() {
+            if (!currentUserId) return;
+
+            try {
+                const response = await fetch(`${apiUrl}/exercices/user/${currentUserId}`, {
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const exercices = await response.json();
+                    const container = document.getElementById('exercicesContainer');
+                    container.innerHTML = ''; // Vider le conteneur
+
+                    exercices.forEach(exercice => {
+                        const exerciceDiv = document.createElement('div');
+                        exerciceDiv.className = 'exercice-item';
+                        
+                        const noteText = exercice.note === null ? 'En attente' : exercice.note + '/100';
+                        const noteClass = exercice.note === null ? 'note pending' : 'note';
+                        
+                        exerciceDiv.innerHTML = `
+                            <div>
+                                <strong>${exercice.name}</strong>
+                                <br>
+                                <small>Soumis le ${new Date(exercice.createdAt).toLocaleString()}</small>
+                            </div>
+                            <span class="${noteClass}">${noteText}</span>
+                        `;
+                        
+                        container.appendChild(exerciceDiv);
+                    });
+                } else {
+                    console.error('Erreur lors du chargement des exercices');
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+            }
+        }
+
         // Vérifier la connexion au démarrage
         checkServerConnection();
 
         // Fonction de déconnexion
         function logout() {
             authToken = '';
+            currentUserId = null;
+            currentUsername = '';
             document.getElementById("exerciceUpload").style.display = "none";
             document.getElementById("loginContainer").style.display = "block";
             document.getElementById("loginMessage").textContent = "";
@@ -113,6 +194,8 @@
             document.getElementById("file").value = "";
             document.getElementById("exerciceName").value = "";
             document.getElementById("uploadMessage").textContent = "";
+            document.getElementById("userInfo").textContent = "";
+            document.getElementById("exercicesContainer").innerHTML = "";
         }
 
         // Fonction de connexion
@@ -137,8 +220,12 @@
                     messageDiv.className = "success";
                     messageDiv.textContent = "Connexion réussie !";
                     authToken = data.token;
+                    currentUserId = data.userId;
+                    currentUsername = data.username;
                     document.getElementById("exerciceUpload").style.display = "block";
-                    document.getElementById("loginContainer").style.display = "none"; // Cacher le formulaire de connexion
+                    document.getElementById("loginContainer").style.display = "none";
+                    document.getElementById("userInfo").textContent = `Connecté en tant que: ${currentUsername}`;
+                    loadUserExercices(); // Charger les exercices après la connexion
                 } else {
                     messageDiv.className = "error";
                     messageDiv.textContent = data.error || "Erreur de connexion";
@@ -165,6 +252,7 @@
             const formData = new FormData();
             formData.append("file", file);
             formData.append("name", exerciceName);
+            formData.append("userId", currentUserId);
 
             try {
                 const response = await fetch(`${apiUrl}/exercices/upload`, {
@@ -179,7 +267,10 @@
 
                 if (response.ok) {
                     messageDiv.className = "success";
-                    messageDiv.textContent = "Exercice téléchargé avec succès !";
+                    messageDiv.textContent = data.message;
+                    document.getElementById("file").value = "";
+                    document.getElementById("exerciceName").value = "";
+                    loadUserExercices(); // Recharger la liste des exercices
                 } else {
                     messageDiv.className = "error";
                     messageDiv.textContent = data.error || "Erreur lors du téléchargement";
@@ -187,7 +278,7 @@
             } catch (error) {
                 console.error('Erreur:', error);
                 messageDiv.className = "error";
-                messageDiv.textContent = "Erreur de connexion au serveur";
+                messageDiv.textContent = "Erreur lors du téléchargement";
             }
         }
     </script>

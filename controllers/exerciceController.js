@@ -40,6 +40,25 @@ const upload = multer({
     }
 });
 
+const getUserExercices = async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const exercices = await Exercice.findAll({
+            where: { userId: userId },
+            order: [['createdAt', 'DESC']], // Du plus récent au plus ancien
+            attributes: ['id', 'name', 'note', 'createdAt'] // On ne renvoie que les champs nécessaires
+        });
+
+        res.status(200).json(exercices);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des exercices:', error);
+        res.status(500).json({ 
+            error: 'Erreur lors de la récupération des exercices',
+            details: error.message 
+        });
+    }
+};
+
 const addExercice = async (req, res) => {
     try {
         if (!req.file) {
@@ -50,11 +69,12 @@ const addExercice = async (req, res) => {
         const relativePath = path.join('uploads', 'exercices', req.file.filename);
         const exerciceName = path.basename(req.file.originalname, '.py');
 
-        // Créer l'exercice dans la base de données
+        // Créer l'exercice dans la base de données avec l'ID utilisateur
         const exercice = await Exercice.create({
             name: exerciceName,
             file_path: relativePath,
-            note: null
+            note: null,
+            userId: req.body.userId || 1 // Utiliser l'ID fourni ou 1 par défaut
         });
 
         // Déclencher le processus de correction
@@ -67,7 +87,8 @@ const addExercice = async (req, res) => {
             exercice: {
                 id: exercice.id,
                 name: exercice.name,
-                file_path: exercice.file_path
+                file_path: exercice.file_path,
+                userId: exercice.userId
             }
         });
     } catch (error) {
@@ -106,7 +127,8 @@ const runExercice = async (req, res) => {
                 exercice: {
                     id: exercice.id,
                     name: exercice.name,
-                    note: exercice.note
+                    note: exercice.note,
+                    userId: exercice.userId
                 }
             });
         });
@@ -119,4 +141,4 @@ const runExercice = async (req, res) => {
     }
 };
 
-module.exports = { upload, addExercice, runExercice };
+module.exports = { upload, addExercice, runExercice, getUserExercices };
