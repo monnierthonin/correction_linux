@@ -4,6 +4,7 @@ const multer = require('multer');
 const fs = require('fs');
 const { exec } = require('child_process');
 const { Exercice } = require('../models');
+const { startCorrection } = require('../services/correctionService');
 
 // Configuration de multer pour l'upload des fichiers
 const storage = multer.diskStorage({
@@ -56,8 +57,13 @@ const addExercice = async (req, res) => {
             note: null
         });
 
+        // Déclencher le processus de correction
+        startCorrection().catch(error => {
+            console.error('Erreur lors du démarrage de la correction:', error);
+        });
+
         res.status(201).json({ 
-            message: 'Exercice ajouté avec succès',
+            message: 'Exercice ajouté avec succès et correction en cours',
             exercice: {
                 id: exercice.id,
                 name: exercice.name,
