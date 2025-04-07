@@ -39,7 +39,6 @@ def calculate_grade(exercice_path, solution_path):
     
     grade = 0.0
     
-    # Vérifier si les fichiers existent
     if not os.path.exists(exercice_path):
         print(f"Erreur : Le fichier exercice n'existe pas : {exercice_path}")
         return 0.0
@@ -56,7 +55,7 @@ def calculate_grade(exercice_path, solution_path):
         print("Pas d'erreur d'exécution : +0.33 points")
     else:
         print(f"Erreur d'exécution : {exercice_error}")
-        return 0.0  # Si erreur d'exécution, note = 0
+        return 0.0
         
     # Deuxième tiers : comparaison des outputs (0.33 points)
     if exercice_output == solution_output:
@@ -86,10 +85,8 @@ def main():
     exercice_path = sys.argv[1]
     solution_path = sys.argv[2]
     
-    # Calculer et retourner la note
     grade = calculate_grade(exercice_path, solution_path)
     
-    # Important : imprimer la note sur la dernière ligne pour que Node.js puisse la récupérer
     print(grade)
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-// app.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -8,12 +7,10 @@ const sequelize = require('./config/db');
 const path = require('path');
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes principales
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -21,13 +18,10 @@ app.get('/', (req, res) => {
 app.use('/auth', authRoutes);
 app.use('/exercices', exerciceRoutes);
 
-// Gestion des erreurs
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Une erreur est survenue!' });
 });
-
-// Synchronisation de la base de données sans force: true pour préserver les données
 sequelize.sync()
     .then(() => {
         console.log('Base de données synchronisée');

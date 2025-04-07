@@ -1,4 +1,3 @@
-// controllers/exerciceController.js
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
@@ -6,24 +5,20 @@ const { exec } = require('child_process');
 const { Exercice } = require('../models');
 const { startCorrection } = require('../services/correctionService');
 
-// Configuration de multer pour l'upload des fichiers
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadsDir = path.join(__dirname, '..', 'uploads', 'exercices');
-        // Vérifier si le dossier uploads/exercices existe, sinon le créer
         if (!fs.existsSync(uploadsDir)) {
             fs.mkdirSync(uploadsDir, { recursive: true });
         }
         cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
-        // Générer un nom de fichier unique avec timestamp
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         cb(null, uniqueSuffix + '.py');
     }
 });
 
-// Filtre pour n'accepter que les fichiers Python
 const fileFilter = (req, file, cb) => {
     if (file.originalname.endsWith('.py')) {
         cb(null, true);
@@ -36,7 +31,7 @@ const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 5 * 1024 * 1024 // Limite à 5MB
+        fileSize: 5 * 1024 * 1024
     }
 });
 
@@ -45,8 +40,8 @@ const getUserExercices = async (req, res) => {
         const userId = req.params.userId;
         const exercices = await Exercice.findAll({
             where: { userId: userId },
-            order: [['createdAt', 'DESC']], // Du plus récent au plus ancien
-            attributes: ['id', 'name', 'note', 'createdAt'] // On ne renvoie que les champs nécessaires
+            order: [['createdAt', 'DESC']],
+            attributes: ['id', 'name', 'note', 'createdAt']
         });
 
         res.status(200).json(exercices);
@@ -65,19 +60,16 @@ const addExercice = async (req, res) => {
             return res.status(400).json({ error: 'Aucun fichier n\'a été uploadé' });
         }
 
-        // Construire le chemin relatif avec le nouveau sous-dossier exercices
         const relativePath = path.join('uploads', 'exercices', req.file.filename);
         const exerciceName = path.basename(req.file.originalname, '.py');
 
-        // Créer l'exercice dans la base de données avec l'ID utilisateur
         const exercice = await Exercice.create({
             name: exerciceName,
             file_path: relativePath,
             note: null,
-            userId: req.body.userId || 1 // Utiliser l'ID fourni ou 1 par défaut
+            userId: req.body.userId || 1
         });
 
-        // Déclencher le processus de correction
         startCorrection().catch(error => {
             console.error('Erreur lors du démarrage de la correction:', error);
         });

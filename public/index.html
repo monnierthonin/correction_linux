@@ -111,7 +111,6 @@
         let currentUserId = null;
         let currentUsername = '';
 
-        // Fonction de déconnexion
         function logout() {
             authToken = '';
             currentUserId = null;
@@ -128,7 +127,6 @@
             document.getElementById("exercicesContainer").innerHTML = "";
         }
 
-        // Fonction de connexion
         async function login() {
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
@@ -166,7 +164,6 @@
             }
         }
 
-        // Charger les exercices de l'utilisateur
         async function loadUserExercices() {
             if (!currentUserId) return;
 
@@ -208,7 +205,6 @@
             }
         }
 
-        // Fonction pour uploader un exercice
         async function uploadExercice() {
             const file = document.getElementById("file").files[0];
             const exerciceName = document.getElementById("exerciceName").value;
