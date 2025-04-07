@@ -1,11 +1,9 @@
-// services/correctionService.js
 const { Exercice, Solution } = require('../models');
 const { spawn } = require('child_process');
 const path = require('path');
 
 const startCorrection = async () => {
     try {
-        // Trouver tous les exercices non notés
         const uncorrectedExercices = await Exercice.findAll({
             where: {
                 note: null
@@ -14,13 +12,11 @@ const startCorrection = async () => {
 
         console.log(`Trouvé ${uncorrectedExercices.length} exercices à corriger`);
 
-        // Pour chaque exercice non noté
         for (const exercice of uncorrectedExercices) {
             try {
                 console.log(`\nTraitement de l'exercice ${exercice.id} (${exercice.name})`);
                 console.log(`Chemin du fichier: ${exercice.file_path}`);
 
-                // Trouver la solution correspondante par nom
                 const solution = await Solution.findOne({
                     where: {
                         name: exercice.name
@@ -35,7 +31,6 @@ const startCorrection = async () => {
                 console.log(`Solution trouvée: ${solution.id} (${solution.name})`);
                 console.log(`Chemin de la solution: ${solution.file_path}`);
 
-                // Construire les chemins absolus pour le script Python
                 const exercicePath = path.join(__dirname, '..', exercice.file_path);
                 const solutionPath = path.join(__dirname, '..', solution.file_path);
 
@@ -43,7 +38,6 @@ const startCorrection = async () => {
                 console.log('Exercice:', exercicePath);
                 console.log('Solution:', solutionPath);
 
-                // Lancer le script de correction Python
                 const pythonProcess = spawn('python', [
                     path.join(__dirname, '..', 'scripts', 'correction.py'),
                     exercicePath,
@@ -53,19 +47,16 @@ const startCorrection = async () => {
                 let result = '';
                 let error = '';
 
-                // Collecter la sortie standard
                 pythonProcess.stdout.on('data', (data) => {
                     result += data.toString();
                     console.log('Python stdout:', data.toString());
                 });
 
-                // Collecter les erreurs
                 pythonProcess.stderr.on('data', (data) => {
                     error += data.toString();
                     console.error('Python stderr:', data.toString());
                 });
 
-                // Attendre la fin du processus
                 await new Promise((resolve, reject) => {
                     pythonProcess.on('close', async (code) => {
                         console.log(`Process exited with code ${code}`);
@@ -73,14 +64,12 @@ const startCorrection = async () => {
                         
                         if (code === 0) {
                             try {
-                                // Extraire la dernière ligne qui contient la note
                                 const lines = result.trim().split('\n');
                                 const grade = parseFloat(lines[lines.length - 1]);
 
                                 console.log(`Note extraite: ${grade}`);
 
                                 if (!isNaN(grade)) {
-                                    // Mettre à jour la note dans la base de données
                                     const updated = await exercice.update({ note: grade.toString() });
                                     console.log('Mise à jour réussie:', updated.toJSON());
                                     resolve();

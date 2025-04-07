@@ -13,11 +13,6 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Route de test
-app.get('/api/test', (req, res) => {
-    res.json({ message: 'Le serveur fonctionne correctement!' });
-});
-
 // Routes principales
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
