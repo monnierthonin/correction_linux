@@ -1,10 +1,10 @@
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
-const { exec } = require('child_process');
-const { Exercice } = require('../models');
-const { startCorrection } = require('../services/correctionService');
+const { spawn } = require('child_process');
+const { Exercice, Solution } = require('../models');
 
+// Configuration de multer pour l'upload de fichiers
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadsDir = path.join(__dirname, '..', 'uploads', 'exercices');
@@ -35,6 +35,7 @@ const upload = multer({
     }
 });
 
+// Récupérer les exercices d'un utilisateur
 const getUserExercices = async (req, res) => {
     try {
         const userId = req.params.userId;
@@ -49,20 +50,22 @@ const getUserExercices = async (req, res) => {
         console.error('Erreur lors de la récupération des exercices:', error);
         res.status(500).json({ 
             error: 'Erreur lors de la récupération des exercices',
-            details: error.message 
+            details: error.message
         });
     }
 };
 
+// Ajouter un nouvel exercice
 const addExercice = async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ error: 'Aucun fichier n\'a été uploadé' });
+            return res.status(400).json({ error: 'Aucun fichier fourni' });
         }
 
+        // Créer l'exercice dans la base de données
+        const exerciceName = req.body.name;
         const relativePath = path.join('uploads', 'exercices', req.file.filename);
-        const exerciceName = path.basename(req.file.originalname, '.py');
-
+        
         const exercice = await Exercice.create({
             name: exerciceName,
             file_path: relativePath,
@@ -70,67 +73,145 @@ const addExercice = async (req, res) => {
             userId: req.body.userId || 1
         });
 
-        startCorrection().catch(error => {
-            console.error('Erreur lors du démarrage de la correction:', error);
-        });
+        // Lancer la correction immédiatement
+        correctExercice(exercice.id);
 
-        res.status(201).json({ 
-            message: 'Exercice ajouté avec succès et correction en cours',
+        res.status(201).json({
+            message: 'Exercice ajouté avec succès',
             exercice: {
                 id: exercice.id,
                 name: exercice.name,
-                file_path: exercice.file_path,
-                userId: exercice.userId
+                note: exercice.note
             }
         });
     } catch (error) {
         console.error('Erreur lors de l\'ajout de l\'exercice:', error);
         res.status(500).json({ 
             error: 'Erreur lors de l\'ajout de l\'exercice',
-            details: error.message 
+            details: error.message
         });
     }
 };
 
-const runExercice = async (req, res) => {
+// Corriger un exercice
+const correctExercice = async (exerciceId) => {
     try {
-        const { exerciceId } = req.params;
+        // Récupérer l'exercice
         const exercice = await Exercice.findByPk(exerciceId);
+        if (!exercice) {
+            console.error(`Exercice ${exerciceId} non trouvé`);
+            return;
+        }
 
+        // Trouver la solution correspondante
+        const solution = await Solution.findOne({
+            where: { name: exercice.name }
+        });
+
+        if (!solution) {
+            console.error(`Pas de solution trouvée pour l'exercice: ${exercice.name}`);
+            return;
+        }
+
+        // Chemins absolus pour les fichiers
+        const exercicePath = path.join(__dirname, '..', exercice.file_path);
+        const solutionPath = path.join(__dirname, '..', solution.file_path);
+
+        // Lancer le script de correction Python
+        const pythonProcess = spawn('python', [
+            path.join(__dirname, '..', 'scripts', 'correction.py'),
+            exercicePath,
+            solutionPath
+        ]);
+
+        let result = '';
+        let error = '';
+
+        // Récupérer la sortie du script
+        pythonProcess.stdout.on('data', (data) => {
+            result += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            error += data.toString();
+        });
+
+        // Attendre la fin de l'exécution
+        pythonProcess.on('close', async (code) => {
+            if (code !== 0) {
+                console.error(`Erreur lors de la correction: ${error}`);
+                return;
+            }
+
+            // La dernière ligne contient la note
+            const lines = result.trim().split('\n');
+            const note = parseFloat(lines[lines.length - 1]);
+
+            // Mettre à jour la note dans la base de données
+            await exercice.update({ note: note });
+            console.log(`Note mise à jour pour l'exercice ${exerciceId}: ${note}`);
+        });
+
+    } catch (error) {
+        console.error('Erreur lors de la correction:', error);
+    }
+};
+
+const runExercice = async (req, res) => {
+    const { exerciceId } = req.params;
+
+    try {
+        const exercice = await Exercice.findByPk(exerciceId);
         if (!exercice) {
             return res.status(404).json({ error: 'Exercice non trouvé' });
         }
 
         const exercicePath = path.join(__dirname, '..', exercice.file_path);
-
+        
         if (!fs.existsSync(exercicePath)) {
             return res.status(404).json({ error: 'Fichier d\'exercice non trouvé' });
         }
 
-        exec(`python ${exercicePath}`, (error, stdout, stderr) => {
-            if (error) {
-                return res.status(500).json({ 
-                    error: 'Erreur d\'exécution',
-                    details: stderr
+        const pythonProcess = spawn('python', [exercicePath]);
+
+        let result = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+            result += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code !== 0) {
+                console.error(`Erreur d'exécution: ${error}`);
+                return res.status(500).json({
+                    error: 'Erreur lors de l\'exécution',
+                    details: error
                 });
             }
-            res.status(200).json({ 
-                output: stdout,
-                exercice: {
-                    id: exercice.id,
-                    name: exercice.name,
-                    note: exercice.note,
-                    userId: exercice.userId
-                }
+
+            res.json({
+                output: result,
+                message: 'Exécution réussie'
             });
         });
     } catch (error) {
-        console.error('Erreur lors de l\'exécution de l\'exercice:', error);
-        res.status(500).json({ 
-            error: 'Erreur lors de l\'exécution de l\'exercice',
-            details: error.message 
+        console.error('Erreur:', error);
+        res.status(500).json({
+            error: 'Erreur lors de l\'exécution',
+            details: error.message
         });
     }
 };
 
-module.exports = { upload, addExercice, runExercice, getUserExercices };
+module.exports = { 
+    upload, 
+    addExercice, 
+    getUserExercices,
+    correctExercice, 
+    runExercice
+};
